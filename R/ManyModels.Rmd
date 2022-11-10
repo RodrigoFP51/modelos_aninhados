@@ -1,0 +1,155 @@
+---
+title: "Modelos Aninhados no R"
+author: "Rodrigo F. Pizzinato"
+date: "`r Sys.Date()`"
+output: 
+  rmdformats::downcute:
+    code_folding: show
+    highlight: haddock
+    toc: 4
+    number_sections: true
+    toc_float: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(broom)
+library(rsample)
+library(paletteer) # Paleta de cores
+library(gapminder) # dataset a ser utilizado
+
+ggplot2::theme_set(
+  theme_light() + 
+    theme(strip.text = element_text(face = "bold", size = 10),
+          strip.background = element_rect(fill = "#74bd6c"),
+          panel.grid = element_blank(),
+          axis.line = element_line(size = 1, color = "#74bd6c"),
+          axis.text = element_text(face = "bold", colour = "#072e10"))
+  )
+
+df <- gapminder
+```
+
+## Introdução
+
+Neste post irei demonstrar como utilizar a abordagem de nested models (modelos aninhados) no R, ou estratégia split-apply-combine, que consiste basicamente em dividir os dados por alguma variável categórica, aplicar alguma função e combinar os resultados obtidos num **dataframe**.
+
+Para este exemplo será necessário somente 3 pacotes. O `tidyverse` servirá como o framework básico para manipulação de dados, o `broom` é utilizado para transformar os resultados dos modelos no format **tidy** e o `gapminder` é de onde vem nossa base de dados.
+
+Para este exemplo irei utilizar a base de dados **gapminder**, presente no pacote de mesmo nome, na qual oferece dados de países e continentes com sua evolução na expectativa de vida, população e produto per capita.
+
+## Breve análise exploratória
+
+Num primeiro momento, é feito uma análise exploratória básica demonstrando a quantidade do dados por continente, como pode ser visto no código abaixo.
+
+```{r}
+df %>% 
+  count(continent, sort = TRUE) %>% 
+  mutate(prop = n / sum(n)) %>% 
+  mutate(continent = fct_reorder(continent, prop),
+         hjust = if_else(row_number() == 5, 0, 1),
+         color = if_else(row_number() == 5, "black", "white")) %>% 
+  ggplot(aes(x=continent, y=prop)) +
+  geom_col(show.legend = FALSE, fill = "darkgreen") +
+  geom_text(aes(label = paste0(round(prop*100,2), "%"), hjust = hjust, color = color), 
+            show.legend = FALSE, size = 4.5) +
+  scale_color_manual(values = c("black","white")) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  coord_flip() +
+  labs(x='', y='',
+       title = "Proporção dos continentes na base de dados")
+```
+
+Em seguida, é feito o gráfico de correlação das variáveis, na qual é possível identificar que as variáveis expectativa de vida e ano tem um correlação média positiva, ou seja, a primeira tende a aumentar com o passar dos anos. Já o produto per capita se correlaciona mais fortemente com a expectativa de vida.
+
+```{r}
+df %>% 
+  select(where(is.numeric)) %>% 
+  corrr::correlate(diagonal = 1) %>% 
+  corrr::rearrange() %>% 
+  corrr::stretch() %>% 
+  ggplot(aes(x,y, fill = r)) + 
+  geom_tile(color = "white") +
+  geom_text(aes(label = round(r,2)),
+            color = "white",
+            size = 5,
+            show.legend = FALSE) +
+  scale_fill_gradient(low = "#072e10", high = "#0ccf3a") +
+  labs(x='',y='', fill='') + 
+  theme(legend.position = "bottom", 
+        legend.direction = "horizontal")
+```
+
+Neste último plot, estão os gráficos de dispersão que relacionam a expectativa de vida com o produto per capita, divididos por continente. Ou seja, é possível ver como essas variáveis estão relacionadas, não de forma geral, mas por cada continente.
+
+```{r, results='hide'}
+df %>% 
+  ggplot(aes(log(gdpPercap), log(lifeExp), colour = continent)) +
+  geom_point(alpha = 0.4, show.legend = FALSE) + 
+  geom_smooth(method = "lm", show.legend = FALSE, 
+              colour = "black", lty = 2) +
+  scale_color_paletteer_d("palettetown::haunter") +
+  facet_wrap(vars(continent), scales = "free") +
+  labs(x='Produto per capita', y='Expectativa de vida', 
+       title = "Relação entre produto per capita e expectativa de vida",
+       subtitle = "Em escala logarítmica")
+         
+```
+
+## Criação dos modelos
+
+A idéia de fazer modelos aninhados é a mesma mostrada no gráfico acima, Porém, ao invés de plotar gráficos para cada variável categórica, é feito um modelo para cada uma. 
+Neste caso, ao invés de utilizar os continentes, irei usar os 12 países que tiveram a maior e menor expectativa de vida no último ano que o dataset apresenta (2007), ou seja, serão criados dois **data frames** para armazenar os nomes dos respectivos países.
+
+O lado ruim disso é que para cada país existem poucas observações (apenas 12), dado que o dataset começa no ano de 1952 e vai até 2007, com intervalos de 5 em 5 anos. 
+No entanto, é interessante para demonstrar como é feita a manipulação de dados para extrair os nomes dos países com a condição que especifiquei acima, além de que o modelo não será utilizado para realizar previsões, apenas para entender as relações entre as variáveis.
+
+```{r}
+tictoc::tic()
+df_models <- df %>% 
+  nest(-c(continent)) %>% 
+  mutate(lm_mod = map(data, ~ reg_intervals(lifeExp ~ year, 
+                                            data=.x, model_fn = "lm",
+                                            times = 1000, 
+                                            alpha = 0.02)))
+         #coefs = map(lm_mod, tidy),
+         #preds = map(lm_mod, augment))
+tictoc::toc()
+
+df_models %>% 
+  unnest(lm_mod) %>% 
+  mutate(term = str_c(term, " - ", continent),
+         .estimate = round(.estimate, 3)) %>% 
+         #type = if_else(str_detect(term, "gdp"), "GDP per capita", "Year")) %>% 
+  ggplot(aes(.estimate, term)) + 
+  expand_limits(x = 0) +
+  geom_vline(xintercept = 0, lty = 2, size = 1, alpha = 0.8) +
+  geom_crossbar(aes(xmin = .lower, xmax = .upper),
+                 color = "#74bd6c", size = 0.8) +
+  scale_x_continuous(labels = scales::comma) +
+  labs(x='', y='')
+```
+
+
+A partir disso, a função `mutate()` é usada para adicionar novas colunas. A coluna **model** irá conter o modelo com todas suas especificações. Para este exemplo, decidi utilizar como regressores as variáveis **produto per capita** e **ano**, isto é, a expectativa de vida será explicada por estas variáveis.
+
+Em seguida, é feita a coluna **term**, através da função `map()`, que contém os termos, os valores, estimados, o erro padrão.. etc. Essa função `map()` é bem útil como substituta do `for()`, pois nela você só precisa incluir um input (lista, vetor ou dataframe) e uma função que irá iterar sobre este input, retornando um resultado.
+
+
+
+
+
+
+
+
+
+
+
+
+
