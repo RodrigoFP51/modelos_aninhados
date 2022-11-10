@@ -137,11 +137,10 @@ df_models %>%
   labs(x='', y='')
 ```
 
+A partir disso, a função `mutate()` é usada para adicionar novas colunas. A coluna **model** irá conter o modelo com todas suas especificações. Para este exemplo, decidi utilizar como regressores as variáveis **produto per capita** e **ano**, isto é, a expectativa de vida será explicada por estas variáveis. 
 
-A partir disso, a função `mutate()` é usada para adicionar novas colunas. A coluna **model** irá conter o modelo com todas suas especificações. Para este exemplo, decidi utilizar como regressores as variáveis **produto per capita** e **ano**, isto é, a expectativa de vida será explicada por estas variáveis.
-
-Em seguida, é feita a coluna **term**, através da função `map()`, que contém os termos, os valores, estimados, o erro padrão.. etc. Essa função `map()` é bem útil como substituta do `for()`, pois nela você só precisa incluir um input (lista, vetor ou dataframe) e uma função que irá iterar sobre este input, retornando um resultado.
-
+Em seguida, é feita a coluna **term**, através da função `map()`, que contém os termos, os valores, estimados, o erro padrão.. etc. Essa função `map()` é bem útil como substituta do `for()`, pois nela você só precisa incluir um input (lista, vetor ou dataframe) e uma função que irá iterar sobre este input, retornando um resultado. 
+ 
 
 
 
