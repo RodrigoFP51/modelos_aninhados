@@ -98,7 +98,8 @@ df %>%
   facet_wrap(vars(continent), scales = "free") +
   labs(x='Produto per capita', y='Expectativa de vida', 
        title = "Relação entre produto per capita e expectativa de vida",
-       subtitle = "Em escala logarítmica")
+       subtitle = "Em escala logarítmica",
+       caption = "Fonte: Gapminder")
          
 ```
 
