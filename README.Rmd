@@ -16,4 +16,5 @@ knitr::opts_chunk$set(
 <!-- badges: start -->
 <!-- badges: end -->
 
-Neste projeto pretendo mostrar como utilizar modelos aninhados no R utilizando o dataset gapminder.
+Neste projeto pretendo mostrar como utilizar modelos aninhados no R utilizando o dataset gapminder. 
+
