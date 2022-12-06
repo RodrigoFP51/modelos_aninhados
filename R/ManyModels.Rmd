@@ -55,7 +55,7 @@ Para este exemplo será necessário somente alguns pacotes:
 
 -   O `gapminder` é de onde vem nossa base de dados.
 
--   O `rsample` fornece a função para modelagem.
+-   O `rsample` fornece a função para modelagem bootstrap.
 
 -   O `corrr` fornece funções para calcular matrizes de correlação.
 
@@ -86,14 +86,6 @@ df %>%
 A expectativa de vida também tem uma tendência crescente em todos os continentes, apesar de estarem em níveis bem diferentes.
 
 ```{r}
-last_info <- df %>% 
-  group_by(continent, year) %>% 
-  summarize(life_exp = median(lifeExp),
-            .groups = "drop") %>%
-  group_by(continent) %>% 
-  summarize(last_year = last(year),
-            last_life_exp = last(life_exp))
-
 df %>% 
   group_by(continent, year) %>% 
   summarize(life_exp = median(lifeExp),
@@ -106,7 +98,7 @@ df %>%
                 linewidth   = 1.2,
                 show.legend = FALSE) +
   #geom_line(size = 1.2) +
-  scale_color_paletteer_d("palettetown::haunter") +
+  scale_color_paletteer_d("NineteenEightyR::sunset3") +
   scale_x_continuous(breaks = seq(1950, 2010, 5)) +
   labs(x='', y='Expectativa de vida', color = '',
        title = "Evolução da expectativa de vida por continentes",
@@ -116,16 +108,16 @@ df %>%
 
 ```
 
-Neste último gráfico de dispersão, é possível ver que o produto per capita se relaciona positivamente com a expectativa de vida.
-Porém, uma regressão linear indicaria coeficientes diferentes para cada continente.
+Neste último gráfico, é possível ver que o produto per capita se relaciona positivamente com a expectativa de vida.
+Porém, uma regressão linear indica coeficientes diferentes para cada continente.
 
 ```{r, results='hide'}
 df %>% 
   ggplot(aes(log(gdpPercap), log(lifeExp), colour = continent)) +
-  geom_point(alpha = 0.4, show.legend = FALSE) + 
+  geom_point(alpha = 0.5, show.legend = FALSE) + 
   geom_smooth(method = "lm", show.legend = FALSE, 
               colour = "black", lty = 2) +
-  scale_color_paletteer_d("palettetown::haunter") +
+  scale_color_paletteer_d("NineteenEightyR::sunset3") +
   facet_wrap(vars(continent), scales = "free") +
   ggpubr::stat_regline_equation(color = "black", label.x.npc = 0.5, label.y.npc = "bottom") +
   ggpubr::stat_cor(color = "black", label.x.npc = 0.3, label.y.npc = 0.1) +
@@ -163,25 +155,30 @@ tictoc::toc()
 df_models 
 ```
 
+Como os valores dos parâmetros para cada continente tem aproximadamente uma distribuição normal, faz sentido sumarizá-los através de uma média.
+
 ```{r}
-df_models %>% 
+df_models_unnested <- df_models %>% 
   unnest(lm_mod) %>% 
-  unnest(.replicates) %>% 
+  unnest(.replicates)
+
+df_models_unnested %>% 
   ggplot(aes(estimate, fill = continent)) +
   geom_histogram(color = "white", show.legend = FALSE) +
-  scale_fill_paletteer_d("palettetown::haunter") +
-  facet_wrap(vars(continent), scales = "free")
+  scale_fill_paletteer_d("NineteenEightyR::sunset3") +
+  facet_wrap(vars(continent), scales = "free", ncol = 2) 
 ```
 
 A coluna **lm_mod** contém o modelo com todas suas especificações.
-Para este exemplo, decidi utilizar como regressores as variáveis **produto per capita** e **ano**, isto é, a expectativa de vida será explicada por estas variáveis.
+Para este exemplo, decidi utilizar como regressor somente a variável **ano**. 
+O continente da ásia foi o que mais crescreu, em média, ao longo do tempo, como indicado no gráfico abaixo. Porém, teve o seu intervalo de confiança é o maior entre todos os continentes. 
 
 ```{r}
 df_models %>% 
   unnest(lm_mod) %>% 
   mutate(.estimate = round(.estimate, 3),
-         term = str_c(continent, " - ", term), 
-         type = if_else(str_detect(term, "gdp"), "GDP per capita", "Year")) %>% 
+         term = str_c(continent, " - ", term),
+         term = fct_reorder(term, .estimate)) %>% 
   ggplot(aes(.estimate, term)) + 
   geom_vline(xintercept = 0, lty = 2, size = 1, alpha = 0.8) +
   geom_pointrange(aes(xmin = .lower, xmax = .upper),
