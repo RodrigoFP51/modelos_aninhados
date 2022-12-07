@@ -61,7 +61,7 @@ Para este exemplo será necessário somente alguns pacotes:
 
 ## Breve análise exploratória
 
-Primeiro, é feito o gráfico de correlação das variáveis, na qual é possível identificar que as variáveis expectativa de vida e ano tem um correlação média positiva, ou seja, a primeira tende a aumentar com o passar dos anos.
+Primeiro, é feito o gráfico de correlação das variáveis, na qual é possível identificar que as variáveis expectativa de vida e ano tem um correlação média positiva, ou seja, a primeira tende a aumentar com o passar dos anos.\
 Já o produto per capita se correlaciona mais fortemente com a expectativa de vida.
 
 ```{r}
@@ -83,7 +83,7 @@ df %>%
         legend.direction = "horizontal")
 ```
 
-A expectativa de vida também tem uma tendência crescente em todos os continentes, apesar de estarem em níveis bem diferentes.
+A expectativa de vida também tem uma tendência crescente em todos os continentes, apesar de estarem em níveis bem diferentes.\
 
 ```{r}
 df %>% 
@@ -108,8 +108,7 @@ df %>%
 
 ```
 
-Neste último gráfico, é possível ver que o produto per capita se relaciona positivamente com a expectativa de vida.
-Porém, uma regressão linear indica coeficientes diferentes para cada continente.
+Neste último gráfico, é possível ver que o produto per capita se relaciona positivamente com a expectativa de vida. Porém, uma regressão linear indica coeficientes diferentes para cada continente.  
 
 ```{r, results='hide'}
 df %>% 
@@ -130,26 +129,23 @@ df %>%
 
 ## Criação dos modelos
 
-A idéia aqui é estimar modelos de regressão linear para cada continente, de modo que possamos obter coeficientes para cada um deles em particular. 
-No entanto, ao invés de utilizar somente um modelo de regressão para cada continente, irei estimar diversos modelos através de um método chamado bootstrap.  
-A regressão linear se basea em diversos pressupostos, como a **normalidade** dos erros, **homocedasticidade** da variância e ausência de **multicolinearidade**. 
+A idéia aqui é estimar modelos de regressão linear para cada continente, de modo que possamos obter coeficientes para cada um deles em particular. No entanto, ao invés de utilizar somente um modelo de regressão para cada continente, irei estimar diversos modelos através de um método chamado bootstrap.    
+A regressão linear se basea em diversos pressupostos, como a **normalidade** dos erros, **homocedasticidade** da variância e ausência de **multicolinearidade**.  
 A ausência desses pressupostos levam, geralmente, a incosistências na estimação dos coeficientes ou dos erros padrão. 
 A estimação por bootstrap não se baseia nesses pressupostos, pois ela é feita diversas vezes.
-O conjunto de dados é
-O objetivo principal é poder estimar coeficientes mais roubustos.
+O conjunto de dados é  
+O objetivo principal é poder estimar coeficientes e intervalos de confiança mais roubustos.
 
 ```{r}
 tictoc::tic()
 df_models <- df %>% 
   nest(-c(continent)) %>% 
-  mutate(lm_mod = map(data, ~ reg_intervals(lifeExp ~ year, 
+  mutate(lm_mod = map(data, ~ reg_intervals(lifeExp ~ year,
                                             data     = .x,
                                             model_fn = "lm",
                                             keep_reps = TRUE,
                                             times    = 1000, 
                                             alpha    = 0.02)))
-         #coefs = map(lm_mod, tidy),
-         #preds = map(lm_mod, augment))
 tictoc::toc()
 
 df_models 
@@ -166,7 +162,10 @@ df_models_unnested %>%
   ggplot(aes(estimate, fill = continent)) +
   geom_histogram(color = "white", show.legend = FALSE) +
   scale_fill_paletteer_d("NineteenEightyR::sunset3") +
-  facet_wrap(vars(continent), scales = "free", ncol = 2) 
+  facet_wrap(vars(continent), 
+             scales = "free", 
+             ncol = 2) +
+  labs(x='Coeficiente', y='', title = "Distribuição dos coeficientes")
 ```
 
 A coluna **lm_mod** contém o modelo com todas suas especificações.
@@ -183,8 +182,13 @@ df_models %>%
   geom_vline(xintercept = 0, lty = 2, size = 1, alpha = 0.8) +
   geom_pointrange(aes(xmin = .lower, xmax = .upper),
                  color = "#74bd6c", size = 0.8) +
+  geom_label(aes(label = .estimate), size = 5, vjust = -0.6, color = "#072e10") +
   expand_limits(x = 0) +
   #facet_wrap(vars(type), scales = "free", ncol = 1) +
   scale_x_continuous(labels = scales::comma) +
-  labs(x='', y='')
+  labs(x='', y='') + 
+  theme(panel.grid.major.x = element_line(size = 0.2, linetype = 2, color = "#74bd6c"))
 ```
+
+
+
