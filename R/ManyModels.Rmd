@@ -46,7 +46,7 @@ df <- gapminder %>%
 
 ## Introdução
 
-Neste post irei demonstrar como utilizar a abordagem de nested models (modelos aninhados) no R, que consiste basicamente em dividir os dados por alguma variável categórica, aplicar alguma função e combinar os resultados obtidos numa tabela.
+Neste post irei demonstrar como utilizar a abordagem de nested models (modelos aninhados) no R, que consiste basicamente em dividir os dados por alguma variável categórica, aplicar um modelo estatístico e combinar os resultados obtidos em uma tabela.
 
 Para este exemplo será necessário somente alguns pacotes:
 
@@ -62,7 +62,7 @@ Para este exemplo será necessário somente alguns pacotes:
 
 ## Breve análise exploratória
 
-Primeiro, é feito o gráfico de correlação das variáveis, na qual é possível identificar que as variáveis expectativa de vida e ano tem um correlação média positiva, ou seja, a primeira tende a aumentar com o passar dos anos.\
+Primeiro, é feito o gráfico de correlação das variáveis, na qual é possível identificar que as variáveis expectativa de vida e ano tem um correlação média positiva, ou seja, a primeira tende a aumentar com o passar dos anos.  
 Já o produto per capita se correlaciona mais fortemente com a expectativa de vida.
 
 ```{r}
@@ -105,7 +105,7 @@ df %>%
        title = "Evolução da expectativa de vida por continentes",
        subtitle = "Mediana dos países do continente") +
   theme(legend.position = "bottom",
-        panel.grid.major.y = element_line(size = 0.2, linetype = 2, color = "#74bd6c"))
+        panel.grid.major.y = element_line(linewidth = 0.2, linetype = 2, color = "#74bd6c"))
 
 ```
 
